@@ -20,12 +20,25 @@ include_directories(include)
 FIND_PACKAGE(CUDA 6.5)
 MESSAGE(STATUS "cuda found ${CUDA_FOUND}")
 
+option(WITH_GPU "compile warp-ctc with cuda." ${CUDA_FOUND})
+option(WITH_OMP "compile warp-ctc with openmp." ON)
+
+if(NOT WITH_OMP)
+    add_definitions(-DCTC_DISABLE_OMP)
+endif()
+
 # need to be at least 30 or __shfl_down in reduce wont compile
 set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} -gencode arch=compute_30,code=sm_30 -O2")
 set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} -gencode arch=compute_35,code=sm_35")
 
 set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} -gencode arch=compute_50,code=sm_50")
 set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} -gencode arch=compute_52,code=sm_52")
+
+IF (CUDA_VERSION GREATER 7.6)
+    set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} -gencode arch=compute_60,code=sm_60")
+    set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} -gencode arch=compute_61,code=sm_61")
+    set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} -gencode arch=compute_62,code=sm_62")
+ENDIF()
 
 if (NOT APPLE)
     set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} --std=c++11")
@@ -53,7 +66,7 @@ ELSE()
 ENDIF()
 
 
-IF (CUDA_FOUND)
+IF (WITH_GPU)
 
     MESSAGE(STATUS "Building shared library with GPU support")
 
@@ -70,9 +83,11 @@ IF (CUDA_FOUND)
     TARGET_LINK_LIBRARIES(test_gpu warpctc ${CUDA_curand_LIBRARY})
 
     INSTALL(TARGETS warpctc
-            RUNTIME DESTINATION "${CMAKE_BINARY_DIR}"
-            LIBRARY DESTINATION "${CMAKE_BINARY_DIR}"
-            ARCHIVE DESTINATION "${CMAKE_BINARY_DIR}")
+            RUNTIME DESTINATION "bin"
+            LIBRARY DESTINATION "lib"
+            ARCHIVE DESTINATION "lib")
+
+    INSTALL(FILES include/ctc.h DESTINATION "include")
 
     IF (Torch_FOUND)
         MESSAGE(STATUS "Building Torch Bindings with GPU support")
@@ -112,9 +127,11 @@ ELSE()
     SET_TARGET_PROPERTIES(test_cpu PROPERTIES COMPILE_FLAGS "${CMAKE_CXX_FLAGS} --std=c++11")
 
     INSTALL(TARGETS warpctc
-            RUNTIME DESTINATION "${CMAKE_BINARY_DIR}"
-            LIBRARY DESTINATION "${CMAKE_BINARY_DIR}"
-            ARCHIVE DESTINATION "${CMAKE_BINARY_DIR}")
+            RUNTIME DESTINATION "bin"
+            LIBRARY DESTINATION "lib"
+            ARCHIVE DESTINATION "lib")
+
+    INSTALL(FILES include/ctc.h DESTINATION "include")
 
     IF (Torch_FOUND)
         MESSAGE(STATUS "Building Torch Bindings with no GPU support")
